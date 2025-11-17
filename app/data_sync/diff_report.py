@@ -58,7 +58,8 @@ def generate_diff_report(
 
         diffs = []
         for col_old, col_new in column_mapping.items():
-            old_val = str(old.get(col_old, "") or "").strip()
+            # Compare TGT→TGT (old vs new) using TGT column names only
+            old_val = str(old.get(col_new, "") or "").strip()
             new_val = str(new.get(col_new, "") or "").strip()
             if old_val != new_val:
                 diffs.append((col_new, old_val, new_val))
