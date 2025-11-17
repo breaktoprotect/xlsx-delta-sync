@@ -6,12 +6,15 @@ from config import OUTPUT_DIR
 
 
 def read_sot_xlsx(
-    file_path: str, sheet_name: Optional[str] = None
+    file_path: str, sheet_name: str
 ) -> Tuple[List[str], List[Dict[str, str]]]:
     """
     Read SOT spreadsheet for data only (ignore styles).
     Returns (headers, list of dicts).
     """
+    if not sheet_name:
+        raise ValueError("SOT sheet name must be provided in config.py")
+
     wb = load_workbook(filename=file_path, data_only=True, read_only=True)
     ws = wb[sheet_name] if sheet_name else wb.worksheets[0]
     header_row = [
@@ -31,11 +34,14 @@ def read_sot_xlsx(
     return headers, data
 
 
-def read_tgt_xlsx(file_path: str, sheet_name: Optional[str] = None):
+def read_tgt_xlsx(file_path: str, sheet_name: str) -> Tuple:
     """
     Read TGT spreadsheet with format preservation (openpyxl workbook object).
     This allows future update of cell values while keeping fills, fonts, etc.
     """
+    if not sheet_name:
+        raise ValueError("TGT sheet name must be provided in config.py")
+
     wb = load_workbook(filename=file_path)
     ws = wb[sheet_name] if sheet_name else wb.worksheets[0]
     return wb, ws

@@ -10,6 +10,8 @@ from app.data_sync.diff_report import generate_diff_report
 def run_sync(
     sot_path: str,
     tgt_path: str,
+    sot_sheet_name: str,
+    tgt_sheet_name: str,
     unique_id_sot: str,
     unique_id_tgt: str,
     column_mapping: dict,
@@ -22,13 +24,13 @@ def run_sync(
     logger.info("=== XLSX Delta Sync Starting ===")
 
     # Step 1: Read SOT (data only)
-    sot_headers, sot_rows = read_sot_xlsx(sot_path)
+    sot_headers, sot_rows = read_sot_xlsx(sot_path, sot_sheet_name)
     logger.info(
         f"SOT loaded with {len(sot_rows)} records and {len(sot_headers)} columns"
     )
 
     # Step 2: Read TGT (with formatting)
-    wb, ws = read_tgt_xlsx(tgt_path)
+    wb, ws = read_tgt_xlsx(tgt_path, tgt_sheet_name)
     tgt_headers = [
         c for c in next(ws.iter_rows(min_row=1, max_row=1, values_only=True))
     ]
