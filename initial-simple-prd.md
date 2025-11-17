@@ -43,7 +43,7 @@ This tool allows users to synchronize data between a main “source of truth” 
   (e.g. REC-421 has been added.)
 - (future) Produce a summary of diff between the SOT and TGT in a easily readable fashion (e.g. similar to code diff) after all the operations have been completed.
 - Raise error in SOT a record is missing unique ID
-- 
+-
 
 # Features, UI & Support
 
@@ -62,3 +62,12 @@ A: No, this is meant to be a simple and straight forward tool. While we will eve
 
 Q: Why no dry mode?
 A: Existing input files are not touched. Logs will already provide what's being updated alongside the new output file. Dry mode doesn't seem very useful.
+
+# Bugs to fix:
+
+(DONE) Provide 'input_files' for SOT and TGT. Set .gitignore to ignore this folder
+(DONE) config.py should include sheet as well.
+(DONE) read_sot_xlsx() and read_tgt_xlsx() in xlsx_io.py should not allow optional and must define "sheet_name"
+(Done) Logging is not reflected the fields correctly, resulting in '' empty previous string
+
+1. Add a check for config.py. If a mapping is done, column on either side must exist in SOT or TGT else fatal error and exit program.
