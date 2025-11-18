@@ -71,3 +71,10 @@ A: Existing input files are not touched. Logs will already provide what's being 
 (Done) Logging is not reflected the fields correctly, resulting in '' empty previous string
 
 1. Add a check for config.py. If a mapping is done, column on either side must exist in SOT or TGT else fatal error and exit program.
+2. New empty record before new rows added
+
+# Features to add
+
+(Done) Feature to detect TGT orphaned records (i.e. SOT don't have those records thus unable to update the TGT).
+
+1. Dry run mode (?)

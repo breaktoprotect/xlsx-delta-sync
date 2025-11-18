@@ -1,10 +1,12 @@
 from loguru import logger
 import copy
+from datetime import datetime
 
 from config import OUTPUT_DIR
 from app.data_io.xlsx_io import read_sot_xlsx, read_tgt_xlsx, write_tgt_xlsx
 from app.data_sync.sync_engine import sync_sot_to_tgt
 from app.data_sync.diff_report import generate_diff_report
+from app.data_sync.orphan_detection import generate_orphan_report_to_log
 
 
 def run_sync(
@@ -53,16 +55,28 @@ def run_sync(
     logger.success(f"Updated TGT written to: {output_file}")
 
     # Step 5: Generate diff report comparing SOT vs updated TGT
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M")
     try:
         generate_diff_report(
+            timestamp=timestamp,
             old_rows=original_tgt_rows,
-            new_rows=updated_rows,  # ← use in-memory data
+            new_rows=updated_rows,
             unique_id_col=unique_id_tgt,
             column_mapping=column_mapping,
             output_dir=output_dir,
         )
     except Exception as e:
         logger.warning(f"Diff report generation failed: {e}")
+
+    # Step 6: Orphaned records appended to same diff log
+    generate_orphan_report_to_log(
+        timestamp=timestamp,
+        sot_rows=sot_rows,
+        tgt_rows=updated_rows,
+        unique_id_sot=unique_id_sot,
+        unique_id_tgt=unique_id_tgt,
+        column_mapping=column_mapping,
+    )
 
     logger.info("=== Sync Complete ===")
     return output_file

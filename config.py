@@ -1,5 +1,6 @@
 # ? General setup
 OUTPUT_DIR = "output"
+LOG_PATH = f"{OUTPUT_DIR}/sync_diff_{{timestamp}}.log"
 
 # Mappings (MANDATORY)
 SOT_SHEETNAME = "SOT_Data"

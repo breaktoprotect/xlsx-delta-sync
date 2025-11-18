@@ -1,5 +1,6 @@
 import pytest
 from openpyxl.styles import PatternFill
+from openpyxl import Workbook, load_workbook
 
 from app.data_io.xlsx_io import read_sot_xlsx, read_tgt_xlsx
 from app.data_io.xlsx_io import read_tgt_xlsx, write_tgt_xlsx
@@ -16,7 +17,7 @@ def tgt_path():
 
 
 def test_read_sot_xlsx_valid(sot_path):
-    headers, rows = read_sot_xlsx(sot_path)
+    headers, rows = read_sot_xlsx(sot_path, sheet_name="SOT_Data")
 
     # sanity checks
     assert isinstance(headers, list)
@@ -30,7 +31,7 @@ def test_read_sot_xlsx_valid(sot_path):
 
 
 def test_read_tgt_xlsx_valid(tgt_path):
-    wb, ws = read_tgt_xlsx(tgt_path)
+    wb, ws = read_tgt_xlsx(tgt_path, sheet_name="Sheet1")
 
     # workbook and sheet object
     assert wb is not None
@@ -44,24 +45,21 @@ def test_read_tgt_xlsx_valid(tgt_path):
 
 def test_read_sot_xlsx_duplicate_headers(tmp_path):
     # create temporary workbook with duplicate headers
-    from openpyxl import Workbook
-
     dup_file = tmp_path / "dup_headers.xlsx"
     wb = Workbook()
     ws = wb.active
+    ws.title = "SOT_Data"
     ws.append(["A", "A"])
     ws.append(["1", "2"])
     wb.save(dup_file)
 
     with pytest.raises(ValueError, match="duplicate column names"):
-        read_sot_xlsx(str(dup_file))
+        read_sot_xlsx(str(dup_file), sheet_name="SOT_Data")
 
 
 def test_write_tgt_xlsx_preserves_fill(tmp_path, tgt_path):
-    from openpyxl import load_workbook
-    from openpyxl.styles import PatternFill
 
-    wb, ws = read_tgt_xlsx(tgt_path)
+    wb, ws = read_tgt_xlsx(tgt_path, sheet_name="Sheet1")
     orig_fill = ws.cell(row=2, column=1).fill
 
     headers = [c.value for c in next(ws.iter_rows(min_row=1, max_row=1))]

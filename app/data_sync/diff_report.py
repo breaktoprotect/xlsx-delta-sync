@@ -1,10 +1,10 @@
-from datetime import datetime
 import os
 from typing import List, Dict, Optional
-from config import OUTPUT_DIR
+from config import OUTPUT_DIR, LOG_PATH
 
 
 def generate_diff_report(
+    timestamp: str,
     old_rows: List[Dict[str, str]],
     new_rows: List[Dict[str, str]],
     unique_id_col: str,
@@ -34,8 +34,7 @@ def generate_diff_report(
     """
     new_index = {r.get(unique_id_col): r for r in new_rows if r.get(unique_id_col)}
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M")
-    log_path = os.path.join(output_dir, f"sync_diff_{timestamp}.log")
+    log_path = LOG_PATH.format(timestamp=timestamp)
     os.makedirs(output_dir, exist_ok=True)
 
     lines = []
