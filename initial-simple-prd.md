@@ -69,9 +69,8 @@ A: Existing input files are not touched. Logs will already provide what's being 
 (DONE) config.py should include sheet as well.
 (DONE) read_sot_xlsx() and read_tgt_xlsx() in xlsx_io.py should not allow optional and must define "sheet_name"
 (Done) Logging is not reflected the fields correctly, resulting in '' empty previous string
-
-1. Add a check for config.py. If a mapping is done, column on either side must exist in SOT or TGT else fatal error and exit program.
-2. New empty record before new rows added
+(Done) Orphaned records to ignore "Retired" status. Generate diff report to ignore records without a valid record (based on config.py). Orphaned records to not display any contents - just ID.
+(Done) Add a check for config.py. If a mapping is done, column on either side must exist in SOT or TGT else fatal error and exit program.
 
 # Features to add
 

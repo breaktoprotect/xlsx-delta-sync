@@ -8,6 +8,8 @@ TGT_SHEETNAME = "Sheet1"
 
 SOT_UNIQUE_ID = "REC ID"
 TGT_UNIQUE_ID = "Record ID"
+UNIQUE_ID_PREFIX = "REC-"
+
 SOT_TO_TGT_COLUMN_MAPPING = {
     "REC Name": "Record Name",
     "Description": "Description",
@@ -19,3 +21,12 @@ SOT_TO_TGT_COLUMN_MAPPING = {
     "Automated Procedure": "Automated Procedure",
     "Severity": "Severity",
 }
+
+# Orphans
+ORPHANS_DETECTION_IGNORE_STATUS = [
+    "Inactive",
+    "Rejected",
+    "Deprecated",
+    "Closed",
+    "Retired",
+]

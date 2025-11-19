@@ -1,6 +1,6 @@
 from typing import List, Dict
 
-from config import LOG_PATH
+from config import LOG_PATH, ORPHANS_DETECTION_IGNORE_STATUS, UNIQUE_ID_PREFIX
 
 
 def find_orphaned_records(
@@ -17,6 +17,10 @@ def find_orphaned_records(
         rec_id = row.get(unique_id_col)
         if not rec_id:
             continue
+
+        if _should_ignore_orphan(row, unique_id_col):
+            continue
+
         if rec_id not in sot_ids:
             orphans.append(row)
     return orphans
@@ -52,7 +56,18 @@ def generate_orphan_report_to_log(
         for row in orphaned_rows:
             rid = row.get(unique_id_tgt)
             f.write(f"\n[ORPHANED] {rid}\n")
-            for col in column_mapping.values():
-                val = str(row.get(col, "") or "").strip()
-                if val:
-                    f.write(f"    {col}: '{val}'\n")
+
+
+def _should_ignore_orphan(row: Dict[str, str], unique_id_col: str) -> bool:
+    rec_id = (row.get(unique_id_col) or "").strip()
+
+    # 1. Reject if not starting with required prefix
+    if not rec_id.startswith(UNIQUE_ID_PREFIX):
+        return True
+
+    # 2. Ignore specific statuses
+    status = (row.get("Status") or "").strip()
+    if status in ORPHANS_DETECTION_IGNORE_STATUS:
+        return True
+
+    return False

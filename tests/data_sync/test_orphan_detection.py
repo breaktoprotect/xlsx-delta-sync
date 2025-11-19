@@ -3,25 +3,83 @@ from app.data_sync.orphan_detection import find_orphaned_records
 from app.data_sync.orphan_detection import generate_orphan_report_to_log
 
 
-def test_find_orphaned_records_basic():
+def test_find_orphaned_records_basic(monkeypatch):
     """
-    Basic test:
-    - TGT has 3 rows
-    - SOT has 2 IDs
-    - 1 orphan should be detected
+    Basic orphan detection with explicit prefix validation.
+    Ensures:
+    - Prefix logic is respected
+    - One orphan is detected
+    - Status does not block detection
     """
+    # Force prefix for this test
+    monkeypatch.setattr("app.data_sync.orphan_detection.UNIQUE_ID_PREFIX", "TEST-")
+
     tgt_rows = [
-        {"REC ID": "REC-001", "Description": "desc A"},
-        {"REC ID": "REC-002", "Description": "desc B"},
-        {"REC ID": "REC-999", "Description": "orphan"},
+        {"REC ID": "TEST-001", "Description": "desc A", "Status": "Active"},
+        {"REC ID": "TEST-002", "Description": "desc B", "Status": "Active"},
+        {"REC ID": "TEST-999", "Description": "orphan", "Status": "Active"},
     ]
-    sot_ids = {"REC-001", "REC-002"}
+    sot_ids = {"TEST-001", "TEST-002"}
     unique_id_col = "REC ID"
 
     orphans = find_orphaned_records(tgt_rows, sot_ids, unique_id_col)
 
     assert len(orphans) == 1
-    assert orphans[0]["REC ID"] == "REC-999"
+    assert orphans[0]["REC ID"] == "TEST-999"
+
+
+def test_orphan_is_ignored_based_on_status(monkeypatch):
+    # Force prefix for the test
+    monkeypatch.setattr("app.data_sync.orphan_detection.UNIQUE_ID_PREFIX", "TEST-")
+
+    # Monkeypatch ignore-status list: includes an extra status ("Discarded")
+    monkeypatch.setattr(
+        "app.data_sync.orphan_detection.ORPHANS_DETECTION_IGNORE_STATUS",
+        ["Inactive", "Rejected", "Deprecated", "Closed", "Retired", "Discarded"],
+    )
+
+    tgt_rows = [
+        {"REC ID": "TEST-999", "Status": "Inactive"},  # ignored
+        {"REC ID": "TEST-888", "Status": "Rejected"},  # ignored
+        {"REC ID": "TEST-777", "Status": "Discarded"},  # ignored because of monkeypatch
+        {"REC ID": "TEST-555", "Status": "Active"},  # valid orphan
+    ]
+
+    sot_ids = set()
+    unique_id_col = "REC ID"
+
+    orphans = find_orphaned_records(tgt_rows, sot_ids, unique_id_col)
+
+    # Only the Active record should remain as a valid orphan
+    assert len(orphans) == 1
+    assert orphans[0]["REC ID"] == "TEST-555"
+
+
+def test_orphan_with_empty_status_is_not_ignored(monkeypatch):
+    # Ensure prefix is enforced
+    monkeypatch.setattr("app.data_sync.orphan_detection.UNIQUE_ID_PREFIX", "TEST-")
+
+    # Monkeypatch ignore-status list (no empty value included)
+    monkeypatch.setattr(
+        "app.data_sync.orphan_detection.ORPHANS_DETECTION_IGNORE_STATUS",
+        ["Inactive", "Rejected", "Deprecated", "Closed", "Retired"],
+    )
+
+    tgt_rows = [
+        {"REC ID": "TEST-123", "Status": ""},  # empty → must NOT be ignored
+        {
+            "REC ID": "TEST-456",
+            "Status": "   ",
+        },  # whitespace → also must NOT be ignored
+    ]
+
+    sot_ids = set()
+    unique_id_col = "REC ID"
+
+    orphans = find_orphaned_records(tgt_rows, sot_ids, unique_id_col)
+
+    # Both should be considered orphans
+    assert {r["REC ID"] for r in orphans} == {"TEST-123", "TEST-456"}
 
 
 def test_find_orphaned_records_empty_tgt():
@@ -34,14 +92,16 @@ def test_find_orphaned_records_empty_tgt():
     assert orphans == []
 
 
-def test_find_orphaned_records_empty_sot_ids():
+def test_find_orphaned_records_empty_sot_ids(monkeypatch):
     """
     If SOT has no IDs, all valid TGT IDs are considered orphaned.
     This matches expected behavior: TGT rows are not in SOT.
     """
+    monkeypatch.setattr("app.data_sync.orphan_detection.UNIQUE_ID_PREFIX", "TEST-")
+
     tgt_rows = [
-        {"REC ID": "A"},
-        {"REC ID": "B"},
+        {"REC ID": "TEST-001"},
+        {"REC ID": "TEST-002"},
         {"REC ID": None},  # should be ignored
         {"REC ID": ""},  # ignored
     ]
@@ -51,7 +111,7 @@ def test_find_orphaned_records_empty_sot_ids():
     orphans = find_orphaned_records(tgt_rows, sot_ids, unique_id_col)
 
     assert len(orphans) == 2
-    assert {r["REC ID"] for r in orphans} == {"A", "B"}
+    assert {r["REC ID"] for r in orphans} == {"TEST-001", "TEST-002"}
 
 
 def test_find_orphaned_records_mixed_ids():
@@ -99,21 +159,6 @@ def test_missing_unique_id_key_is_ignored():
     orphans = find_orphaned_records(tgt_rows, sot_ids, unique_id_col)
 
     assert len(orphans) == 0  # the missing-ID row should not break logic
-
-
-def test_numeric_ids_are_supported():
-    tgt_rows = [
-        {"ID": 1},
-        {"ID": 2},
-        {"ID": 999},
-    ]
-    sot_ids = {1, 2}
-    unique_id_col = "ID"
-
-    orphans = find_orphaned_records(tgt_rows, sot_ids, unique_id_col)
-
-    assert len(orphans) == 1
-    assert orphans[0]["ID"] == 999
 
 
 # === Test for generate_orphan_report_to_log ===
@@ -167,7 +212,11 @@ def test_no_orphans_produces_no_output(tmp_path):
     assert "ORPHANED" not in content
 
 
-def test_orphan_report_includes_mapped_columns(tmp_path, monkeypatch):
+def test_orphan_report_outputs_only_id(tmp_path, monkeypatch):
+    # Ensure the orphan feature uses strict prefix detection
+    monkeypatch.setattr("app.data_sync.orphan_detection.UNIQUE_ID_PREFIX", "REC-")
+
+    # Redirect LOG_PATH to tmp_path
     monkeypatch.setattr(
         "app.data_sync.orphan_detection.LOG_PATH",
         str(tmp_path / "sync_diff_{timestamp}.log"),
@@ -177,7 +226,9 @@ def test_orphan_report_includes_mapped_columns(tmp_path, monkeypatch):
     log_path.write_text("HEADER\n")
 
     sot_rows = [{"REC ID": "REC-001"}]
-    tgt_rows = [{"REC ID": "REC-999", "Description": "orphan desc", "Owner": "Ghost"}]
+    tgt_rows = [
+        {"REC ID": "REC-999", "Description": "orphan desc", "Owner": "Ghost"},
+    ]
 
     generate_orphan_report_to_log(
         timestamp="TEST",
@@ -189,11 +240,25 @@ def test_orphan_report_includes_mapped_columns(tmp_path, monkeypatch):
     )
 
     content = log_path.read_text()
-    assert "Description: 'orphan desc'" in content
-    assert "Owner: 'Ghost'" in content
+
+    # --- Assertions ---
+    # 1. Orphan section header must exist
+    assert "=== ORPHANED RECORDS" in content
+
+    # 2. Only the orphan ID should appear
+    assert "[ORPHANED] REC-999" in content
+
+    # 3. Absolutely no mapped columns should appear
+    assert "Description" not in content
+    assert "Owner" not in content
+    assert "'" not in content  # avoids " 'orphan desc' "
 
 
 def test_orphan_log_path_respects_timestamp(tmp_path, monkeypatch):
+    # Enforce consistent prefix for test validity
+    monkeypatch.setattr("app.data_sync.orphan_detection.UNIQUE_ID_PREFIX", "TEST-")
+
+    # Redirect LOG_PATH to tmp_path
     monkeypatch.setattr(
         "app.data_sync.orphan_detection.LOG_PATH",
         str(tmp_path / "sync_diff_{timestamp}.log"),
@@ -204,11 +269,23 @@ def test_orphan_log_path_respects_timestamp(tmp_path, monkeypatch):
 
     generate_orphan_report_to_log(
         timestamp=timestamp,
-        sot_rows=[{"ID": "A"}],
-        tgt_rows=[{"ID": "B"}],
+        sot_rows=[{"ID": "TEST-001"}],
+        tgt_rows=[{"ID": "TEST-999"}],  # valid orphan under TEST- prefix
         unique_id_sot="ID",
         unique_id_tgt="ID",
         column_mapping={},
     )
 
     assert expected_path.exists(), "Report must be written to the LOG_PATH template"
+
+
+def test_case_sensitivity_in_ids(monkeypatch):
+    monkeypatch.setattr("app.data_sync.orphan_detection.UNIQUE_ID_PREFIX", "TEST-")
+
+    tgt_rows = [{"REC ID": "TEST-001"}]
+    sot_ids = {"test-001"}  # different case
+
+    orphans = find_orphaned_records(tgt_rows, sot_ids, "REC ID")
+
+    # current expected behavior (strict match → orphan)
+    assert len(orphans) == 1
