@@ -72,7 +72,13 @@ def test_write_tgt_xlsx_preserves_fill(tmp_path, tgt_path):
             row_dict["Record Name"] = "UPDATED VALUE"
         updated_rows.append(row_dict)
 
-    out_file = write_tgt_xlsx(wb, ws, updated_rows, tmp_path, "TGT_sample.xlsx")
+    out_file = write_tgt_xlsx(
+        wb,
+        ws,
+        updated_rows,
+        "TGT_sample.xlsx",
+        tmp_path,
+    )
     wb_new = load_workbook(out_file)
     ws_new = wb_new.active
     new_fill = ws_new.cell(row=2, column=1).fill
