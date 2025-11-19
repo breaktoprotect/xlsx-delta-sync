@@ -1,6 +1,6 @@
 import os
 from typing import List, Dict, Optional
-from config import OUTPUT_DIR, LOG_PATH
+from config import OUTPUT_DIR, LOG_PATH, UNIQUE_ID_PREFIX
 
 
 def generate_diff_report(
@@ -44,6 +44,10 @@ def generate_diff_report(
         record_id = old.get(unique_id_col)
         if not record_id:
             continue
+
+        if not record_id.startswith(UNIQUE_ID_PREFIX):
+            continue
+
         if valid_ids and record_id not in valid_ids:
             continue
 
@@ -75,6 +79,8 @@ def generate_diff_report(
         rec_id = new.get(unique_id_col)
         if not rec_id:
             continue
+        if not rec_id.startswith(UNIQUE_ID_PREFIX):
+            continue
         if valid_ids and rec_id not in valid_ids:
             continue
         if rec_id in old_ids:
@@ -103,3 +109,69 @@ def generate_diff_report(
     print(f"\n✅ Diff report saved to: {log_path}\n")
 
     return log_path
+
+
+def test_diff_report_skips_non_sot_records_in_updated(tmp_path, monkeypatch):
+    """
+    A TGT record that is NOT in SOT (valid_ids) and whose ID does NOT
+    start with the required UNIQUE_ID_PREFIX ('TEST-') must NOT be logged
+    under [UPDATED], even if its values changed.
+    """
+
+    # Patch log path
+    monkeypatch.setattr(
+        "app.data_sync.diff_report.LOG_PATH",
+        str(tmp_path / "sync_diff_{timestamp}.log"),
+    )
+
+    # IMPORTANT:
+    # Patch UNIQUE_ID_PREFIX *inside diff_report module*, not the config module.
+    monkeypatch.setattr(
+        "app.data_sync.diff_report.UNIQUE_ID_PREFIX",
+        "TEST-",
+    )
+
+    # --- Arrange ---
+    old_rows = [
+        {"Record ID": "TEST-001", "Description": "A"},  # valid SOT ID
+        {"Record ID": "NOT_VALID", "Description": "Old"},  # MUST be ignored
+    ]
+
+    new_rows = [
+        {"Record ID": "TEST-001", "Description": "A"},  # unchanged
+        {"Record ID": "NOT_VALID", "Description": "New"},  # changed but invalid
+    ]
+
+    # Only TEST-001 is a valid SOT ID
+    valid_ids = {"TEST-001"}
+
+    column_mapping = {"Description": "Description"}
+
+    timestamp = "TEST_PREFIX_FILTER"
+
+    # --- Act ---
+    log_path = generate_diff_report(
+        timestamp=timestamp,
+        old_rows=old_rows,
+        new_rows=new_rows,
+        unique_id_col="Record ID",
+        column_mapping=column_mapping,
+        output_dir=tmp_path,
+        valid_ids=valid_ids,
+    )
+
+    content = Path(log_path).read_text(encoding="utf-8")
+
+    # --- Assert ---
+    # MUST NOT appear in UPDATED
+    assert (
+        "[UPDATED] NOT_VALID" not in content
+    ), "Record IDs not matching SOT and prefix 'TEST-' must not appear in UPDATED."
+
+    # MUST NOT include its diff
+    assert (
+        "Old" not in content and "New" not in content
+    ), "Diff lines for NOT_VALID must not appear at all."
+
+    # Only TEST-001 exists and has no differences
+    assert "No differences found" in content
