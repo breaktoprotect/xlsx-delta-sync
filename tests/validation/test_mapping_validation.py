@@ -82,9 +82,21 @@ def test_validate_mapping_empty_tgt():
     assert any("TGT is empty" in e for e in errors)
 
 
+def test_mapping_allows_tgt_extra_columns():
+    sot_rows = [
+        {"REC ID": "1", "Description": "A", "Owner": "Alice"},
+    ]
+    tgt_rows = [
+        {"REC ID": "1", "Description": "A", "Owner": "Alice", "Status": "Active"},
+    ]
+
+    mapping = {"Description": "Description", "Owner": "Owner"}
+
+    errors = validate_column_mapping(sot_rows, tgt_rows, mapping)
+    assert errors == []  # extra columns in TGT are allowed
+
+
 # ------------------------ Test Header Consistency ------------------------ #
-
-
 def test_consistent_headers_valid():
     rows = [
         {"id": "1", "name": "Alice"},

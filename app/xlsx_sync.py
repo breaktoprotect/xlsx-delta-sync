@@ -7,6 +7,10 @@ from app.data_io.xlsx_io import read_sot_xlsx, read_tgt_xlsx, write_tgt_xlsx
 from app.data_sync.sync_engine import sync_sot_to_tgt
 from app.data_sync.diff_report import generate_diff_report
 from app.data_sync.orphan_detection import generate_orphan_report_to_log
+from app.validation.mapping_validation import (
+    validate_column_mapping,
+    ensure_consistent_headers,
+)
 
 
 def run_sync(
@@ -42,6 +46,21 @@ def run_sync(
     logger.info(
         f"TGT loaded with {len(tgt_rows)} records and {len(tgt_headers)} columns"
     )
+
+    # Validation: Headers in config.py must exist in SOT and TGT
+    try:
+        ensure_consistent_headers(sot_rows, "SOT")
+        ensure_consistent_headers(tgt_rows, "TGT")
+
+        mapping_errors = validate_column_mapping(sot_rows, tgt_rows, column_mapping)
+        if mapping_errors:
+            raise ValueError(
+                "Column mapping validation failed:\n"
+                + "\n".join(f"- {err}" for err in mapping_errors)
+            )
+    except Exception as e:
+        logger.error(f"Validation failed: {e}")
+        raise
 
     original_tgt_rows = copy.deepcopy(tgt_rows)
 
