@@ -83,37 +83,3 @@ def write_tgt_xlsx(
     wb.save(out_path)
 
     return str(out_path)
-
-
-# ! test only: To inspect the output of the xlsx TGT file to make sure styles are preserved
-if __name__ == "__main__":
-    tgt_file = "tests/sample_input_files/TGT_sample.xlsx"
-
-    wb, ws = read_tgt_xlsx(tgt_file)
-
-    # read headers correctly
-    headers = [
-        str(c).strip()
-        for c in next(ws.iter_rows(min_row=1, max_row=1, values_only=True))
-    ]
-
-    # build current rows
-    rows = []
-    for row in ws.iter_rows(min_row=2, max_row=ws.max_row, values_only=True):
-        rows.append(dict(zip(headers, row)))
-
-    # add one new record (new REC ID)
-    new_record = {h: "" for h in headers}
-    new_record.update(
-        {
-            "REC ID": "REC-9999",
-            "REC Name": "Manual Test New Entry",
-            "Description": "Added for manual verification of fill retention",
-            "Owner": "Tester (00000000)",
-            "Status": "Active",
-        }
-    )
-    rows.append(new_record)
-
-    out_path = write_tgt_xlsx(wb, ws, rows, "TGT_sample.xlsx", ".")
-    print(f"New file written to: {out_path}")
