@@ -11,6 +11,7 @@ from app.validation.mapping_validation import (
     validate_column_mapping,
     ensure_consistent_headers,
 )
+from app.validation.duplicate_detection import ensure_no_duplicate_ids
 
 
 def run_sync(
@@ -49,15 +50,22 @@ def run_sync(
 
     # Validation: Headers in config.py must exist in SOT and TGT
     try:
+        # Headers consistency check (optional)
         ensure_consistent_headers(sot_rows, "SOT")
         ensure_consistent_headers(tgt_rows, "TGT")
 
+        # Column mapping validation - mapped columns on both left and right hand side must exist in the XLSX files
         mapping_errors = validate_column_mapping(sot_rows, tgt_rows, column_mapping)
         if mapping_errors:
             raise ValueError(
                 "Column mapping validation failed:\n"
                 + "\n".join(f"- {err}" for err in mapping_errors)
             )
+
+        # Check for duplicate unique IDs in SOT and TGT
+        ensure_no_duplicate_ids(sot_rows, unique_id_sot, "SOT")
+        ensure_no_duplicate_ids(tgt_rows, unique_id_tgt, "TGT")
+
     except Exception as e:
         logger.error(f"Validation failed: {e}")
         raise

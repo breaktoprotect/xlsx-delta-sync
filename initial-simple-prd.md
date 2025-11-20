@@ -72,12 +72,11 @@ A: Existing input files are not touched. Logs will already provide what's being 
 (Done) Orphaned records to ignore "Retired" status. Generate diff report to ignore records without a valid record (based on config.py). Orphaned records to not display any contents - just ID.
 (Done) Add a check for config.py. If a mapping is done, column on either side must exist in SOT or TGT else fatal error and exit program.
 (Done) Improvement: diff report generation to ignore records without proper unique ID prefix
-
-- Bug: Records untouched are displayed in the logs. This is due to duplicates
+(Done) Bug: Records untouched are displayed in the logs. This is due to duplicates
 
 # Features to add
 
 (Done) Feature to detect TGT orphaned records (i.e. SOT don't have those records thus unable to update the TGT).
+(Done) Feature: Duplicate detection as duplicates can cause alot of issues.
 
-- Feature: Duplicate detection as duplicates can cause alot of issues.
 - Dry run mode (?)
